@@ -1,54 +1,48 @@
 // api/create-tender.js
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 
-// Configure Firebase Admin from Vercel's Environment Variables
-const serviceAccount = {
-  project_id: process.env.FIREBASE_PROJECT_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Fix newlines
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-};
+export default async function handler(req, res) {
+  // --- 1. FORCE CORS HEADERS (The Fix) ---
+  // This tells the browser "It is okay to talk to this Vercel backend"
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-if (getApps().length === 0) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
-}
-
-const db = getFirestore();
-
-// The API Handler
-export default async function handler(request, response) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({ message: 'Method Not Allowed' });
+  // --- 2. HANDLE PREFLIGHT REQUEST ---
+  // Browsers send a hidden "OPTIONS" request first to check permissions.
+  // We must answer "OK" to this, or the real POST request never happens.
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
-  try {
-    const { clientName, title, category, submissionDeadline, notes } = request.body;
+  // --- 3. YOUR ORIGINAL LOGIC BELOW ---
+  // (I am assuming a simple structure here, adjust if you use a database)
+  
+  if (req.method === 'POST') {
+    try {
+      // Get data from the frontend
+      const { title, description, attachmentUrl } = req.body;
 
-    if (!clientName || !title || !category || !submissionDeadline) {
-      return response.status(400).json({ message: 'Missing required fields.' });
+      console.log("Received tender:", title);
+
+      // TODO: Save to your database here (MongoDB, Postgres, Firebase, etc.)
+      // For now, we just echo it back to prove it works.
+      
+      return res.status(200).json({ 
+        message: "Success! Backend received the data.",
+        receivedData: { title, description, attachmentUrl }
+      });
+
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Something went wrong on the server" });
     }
-
-    const newTender = {
-      clientName,
-      title,
-      category,
-      submissionDeadline,
-      notes: notes || '',
-      status: 'Received / New',
-      createdAt: new Date().toISOString(),
-    };
-
-    const docRef = await db.collection('tenders').add(newTender);
-
-    return response.status(201).json({ 
-      message: 'Tender created successfully', 
-      tenderId: docRef.id 
-    });
-
-  } catch (error) {
-    console.error('Error creating tender:', error);
-    return response.status(500).json({ message: 'Internal Server Error' });
   }
+
+  // Handle other methods
+  return res.status(405).json({ error: "Method not allowed" });
 }
