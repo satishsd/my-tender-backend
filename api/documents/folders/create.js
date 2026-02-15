@@ -18,7 +18,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validate parent folder exists if parentId is provided
+    // Validate parent folder exists and build path
+    let path = '/';
     if (parentId) {
       const parentDoc = await db.collection('folders').doc(parentId).get();
       if (!parentDoc.exists) {
@@ -27,12 +28,6 @@ export default async function handler(req, res) {
           error: 'Parent folder not found',
         });
       }
-    }
-
-    // Build the path for breadcrumb navigation
-    let path = '/';
-    if (parentId) {
-      const parentDoc = await db.collection('folders').doc(parentId).get();
       const parentData = parentDoc.data();
       path = `${parentData.path}${parentData.name}/`;
     }
